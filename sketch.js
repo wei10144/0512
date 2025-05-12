@@ -1,4 +1,4 @@
-let facemesh;
+let faceapi;
 let video;
 let predictions = [];
 const pointsToDraw = [
@@ -18,17 +18,23 @@ function setup() {
   video.size(width, height);
   video.hide();
 
-  // 初始化 facemesh 模型
-  facemesh = ml5.facemesh(video, modelReady);
-
-  // 當模型偵測到臉部時，更新 predictions
-  facemesh.on("predict", (results) => {
-    predictions = results;
-  });
+  // 初始化 faceApi 模型
+  const options = { withLandmarks: true, withDescriptors: false };
+  faceapi = ml5.faceApi(video, options, modelReady);
 }
 
 function modelReady() {
-  console.log("Facemesh model ready!");
+  console.log("FaceApi model ready!");
+  faceapi.detect(gotResults);
+}
+
+function gotResults(err, result) {
+  if (err) {
+    console.error(err);
+    return;
+  }
+  predictions = result;
+  faceapi.detect(gotResults); // 持續偵測
 }
 
 function draw() {
@@ -43,11 +49,11 @@ function draw() {
 
 function drawKeypoints() {
   for (let i = 0; i < predictions.length; i++) {
-    const keypoints = predictions[i].scaledMesh;
+    const keypoints = predictions[i].landmarks.positions;
 
     for (let j = 0; j < pointsToDraw.length; j++) {
       const index = pointsToDraw[j];
-      const [x, y] = keypoints[index];
+      const { x, y } = keypoints[index];
       fill(255, 0, 0);
       noStroke();
       ellipse(x, y, 5, 5); // 繪製紅色的點
@@ -57,7 +63,7 @@ function drawKeypoints() {
 
 function drawLips() {
   for (let i = 0; i < predictions.length; i++) {
-    const keypoints = predictions[i].scaledMesh;
+    const keypoints = predictions[i].landmarks.positions;
 
     // 繪製外嘴唇
     stroke(0, 255, 0); // 綠色線條
@@ -66,7 +72,7 @@ function drawLips() {
     beginShape();
     for (let j = 0; j < lipsPoints.length; j++) {
       const index = lipsPoints[j];
-      const [x, y] = keypoints[index];
+      const { x, y } = keypoints[index];
       vertex(x, y);
     }
     endShape(CLOSE); // 將線條閉合
